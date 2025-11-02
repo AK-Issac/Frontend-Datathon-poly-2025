@@ -1,106 +1,104 @@
-# 🐍 Team S3-erpent
+# 🐍 S3-erpent  
+### Datathon 2025 — PolyFinances  
 
-> **AI-powered portfolio risk analysis for financial and legislative documents — built entirely on AWS.**
-
----
-
-### 🔗 Links  
-- 🎥 [YouTube Demo](#)  
-- 💻 [Devpost Submission](#)  
-- 🌐 [Live Deployment](#)
+![Next.js](https://img.shields.io/badge/Frontend-Next.js-blue?logo=nextdotjs)
+![Flask](https://img.shields.io/badge/Backend-Flask-lightgrey?logo=flask)
+![AWS](https://img.shields.io/badge/Cloud-AWS-orange?logo=amazonaws)
+![Hackathon](https://img.shields.io/badge/Projet-Datathon%202025%20PolyFinances-success?logo=hackclub)
+![License](https://img.shields.io/badge/Licence-MIT-green)
 
 ---
 
-### 🧠 Overview  
-
-S3-erpent is a fully AWS-integrated system that automatically analyzes large-scale financial or legislative documents — such as SEC filings, K10 reports, or proposed laws — and evaluates their potential impact on a given stock portfolio.  
-
-Our platform processes these reports, compares them to your existing portfolio (e.g., the **S&P 500**), and provides **data-driven insights, risk scores, and portfolio adjustment recommendations**.  
-
-This enables investors and analysts to **quickly understand the financial implications of new information** and **make more informed, strategic decisions**.
+> **Analyse automatisée de rapports financiers et législatifs à l’aide d’une architecture AWS intégrée — avec recommandations et chatbot contextuel.**
 
 ---
 
-### 🚀 Key Features  
-
-- 📄 **Smart Document Upload:** Supports lengthy, complex documents such as legislation or financial filings.  
-- ⚙️ **Automated AWS Pipeline:** Triggers cleaning, chunking, and multi-step analysis seamlessly via Step Functions.  
-- 📊 **Impact & Risk Analysis:** Identifies at-risk sectors and provides reweighting recommendations.  
-- 💬 **RAG Chatbot:** Query your reports and portfolios directly using natural language — not just a one-time report.  
-- 🧾 **Executive Summaries:** Concise human-readable overviews highlighting key risks, metrics, and financial impacts.  
+### 🔗 Liens  
+- 🎥 [Vidéo de démonstration](#)  
+- 💻 [Devpost](#)  
+- 🌐 [Déploiement en ligne](#)  
 
 ---
 
-### 🧩 Tech Stack  
+### 🧠 Aperçu du projet  
 
-**Frontend:** Next.js  
-**Backend:** Flask  
-**Cloud & Infrastructure:**  
-AWS Lambda · Amazon S3 · Step Functions · DynamoDB · Elastic Beanstalk · Amazon Bedrock (Models + Agent Core) · IAM · AWS Knowledge Bases  
-*(Fully serverless and cloud-native architecture)*
+**S3-erpent** est une plateforme entièrement bâtie sur AWS qui permet d’analyser automatiquement de volumineux documents financiers ou législatifs — tels que des rapports SEC, des formulaires K10 ou des projets de loi — afin d’évaluer leur **impact potentiel sur un portefeuille boursier** (ex. le S&P 500).  
+
+Notre solution transforme ces documents complexes en **indicateurs de risque clairs**, fournit des **recommandations de rééquilibrage**, et permet même à l’utilisateur de **dialoguer avec ses données** grâce à un agent conversationnel alimenté par une base de connaissances AWS.
 
 ---
 
-### ⚙️ How It Works  
+### 🚀 Fonctionnalités principales  
 
-1. **File Upload**  
-   - User uploads a document (e.g., SEC filing, legislation).  
-   - Stored in **Amazon S3**, triggering a Lambda function.  
-
-2. **Cleaning & Chunking**  
-   - The Lambda normalizes and splits large files into smaller **chunks** for parallel processing.  
-
-3. **Step Function Orchestration**  
-   - A **state machine** coordinates five Lambda-based stages:  
-     1. List document chunks.  
-     2. Process each chunk in parallel via LLM to extract financial and regulatory features.  
-     3. Aggregate chunk results into a comprehensive report.  
-     4. Generate a filtered, concise summary.  
-     5. Compare with **DynamoDB-stored portfolio data** to create recommendations.  
-
-4. **Insight Generation**  
-   - LLM refines outputs into readable narratives and actionable insights (e.g., risk factors, exposure advice).  
-
-5. **Knowledge Base Integration**  
-   - Final reports are automatically re-synced with an **AWS Knowledge Base**.  
-   - A **RAG-powered chatbot** enables conversational analysis of your data (“Which companies are most affected by this policy?”).  
+- 📄 **Téléversement intelligent de documents** : supporte les fichiers financiers et législatifs volumineux.  
+- ⚙️ **Pipeline AWS automatisé** : nettoyage, segmentation et traitement parallèle orchestrés via Step Functions.  
+- 📊 **Analyse d’impact et de risque** : identifie les secteurs les plus exposés et suggère des ajustements de pondération.  
+- 💬 **Chatbot RAG** : permet d’interagir directement avec les rapports et le portefeuille, en langage naturel.  
+- 🧾 **Rapports exécutifs** : résumés clairs présentant les risques, métriques clés et estimations financières.  
 
 ---
 
-### 🧍‍♂️ Team  
+### 🧩 Technologies utilisées  
 
-**Vous faites partie de L’ÉQUIPE #28**, composée de:  
-- **Alexander Meriakri** — Full Stack Development & Application Deployment  
-- **Ayoub Khial** — Full Stack Development & Application Deployment  
-- **Leroy Tiojip** — Assisted with RAG Retrieval and Documentation  
-- **William Dunwoody** — AWS Infrastructure Lead (Lambdas, Step Functions, Buckets, DynamoDB, Knowledge Base, State Machine)
-
----
-
-### 🏆 Hackathon Context  
-
-Built during an **AWS-finance-focused datathon**, our solution stands out through:  
-- A **fully AWS-native architecture**, integrating Bedrock Agents and Step Functions for robust automation.  
-- A **dual analysis model**, providing both real-time insights **and** conversational RAG-based data exploration.
+**Frontend :** Next.js  
+**Backend :** Flask  
+**Cloud & Infrastructure :**  
+AWS Lambda · Amazon S3 · Step Functions · DynamoDB · Elastic Beanstalk · Amazon Bedrock (LLMs + Agent Core) · IAM · AWS Knowledge Bases  
+*(Architecture 100 % serverless et cloud-native)*
 
 ---
 
-### 🌟 Future Improvements  
+### ⚙️ Fonctionnement du système  
 
-- 📈 **Interactive Visualization:** Implement dashboards and graphing to visualize risk trends and predictions.  
-- ⚡ **Model Optimization:** Refine LLM prompt engineering and feature extraction for faster, more accurate financial interpretation.
+1. **Téléversement du fichier**  
+   - L’utilisateur charge un document (rapport financier, projet de loi, etc.).  
+   - Le fichier est stocké dans **Amazon S3**, ce qui déclenche une fonction Lambda.  
+
+2. **Nettoyage et segmentation**  
+   - Le document est normalisé et découpé en **fragments** pour permettre un traitement parallèle.  
+
+3. **Orchestration Step Functions**  
+   - Une **machine d’états** gère cinq étapes principales :  
+     1. Lister les fragments disponibles.  
+     2. Lancer en parallèle une analyse LLM pour chaque fragment (extraction d’impacts, métriques, risques).  
+     3. Agréger les résultats pour former un rapport complet.  
+     4. Générer un résumé concis et filtré.  
+     5. Comparer les données avec le portefeuille enregistré dans **DynamoDB** et produire des recommandations.  
+
+4. **Génération d’insights**  
+   - LLM produit un résumé lisible par l’humain : zones de risque, impact financier, conseils stratégiques, etc.  
+
+5. **Intégration à la base de connaissances**  
+   - Les rapports finaux sont synchronisés avec une **AWS Knowledge Base**.  
+   - Un **chatbot RAG** permet d’interroger les données :  
+     > “Quels titres sont les plus affectés par cette réglementation ?”  
 
 ---
 
-### 🪄 Badges  
+### 🧑‍💻 Équipe  
 
-![Next.js](https://img.shields.io/badge/Frontend-Next.js-blue?logo=nextdotjs)  
-![Flask](https://img.shields.io/badge/Backend-Flask-lightgrey?logo=flask)  
-![AWS](https://img.shields.io/badge/Cloud-AWS-orange?logo=amazonaws)  
-![Hackathon](https://img.shields.io/badge/Built%20For-Datathon-success?logo=hackclub)  
-![License](https://img.shields.io/badge/License-MIT-green)
+**Équipe #28 — Datathon 2025 PolyFinances**  
+- **Alexander Meriakri** — Développement Full Stack & Déploiement  
+- **Ayoub Khial** — Développement Full Stack & Déploiement  
+- **Leroy Tiojip** — Contribution au module RAG (recherche et documentation)  
+- **William Dunwoody** — Responsable Infrastructure AWS (Lambdas, Step Functions, Buckets, DynamoDB, Knowledge Base, State Machine)
 
 ---
 
-> “S3-erpent — where financial insight meets intelligent automation.” 🐍  
-> *Built with passion, teamwork, and way too many Lambda functions.*
+### 🏆 Contexte du Datathon  
+
+Créé dans le cadre du **Datathon 2025 PolyFinances**, ce projet se distingue par :  
+- Une **intégration complète à l’écosystème AWS**, utilisant Bedrock Agents, Step Functions et DynamoDB.  
+- Une approche **hybride** : génération d’insights immédiats **et** exploration conversationnelle des données historiques.
+
+---
+
+### 🌟 Pistes d’amélioration  
+
+- 📈 **Visualisation interactive** : intégration de graphiques et tableaux de bord pour suivre les tendances et les prévisions.  
+- ⚡ **Optimisation du pipeline** : amélioration des performances et du prompt engineering pour une interprétation financière encore plus fine.
+
+---
+
+> 🐍 **S3-erpent — là où l’intelligence artificielle rencontre la finance.**  
+> *Un projet conçu avec passion, collaboration et une bonne dose de fonctions Lambda.*
