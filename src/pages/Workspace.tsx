@@ -1,279 +1,159 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import DocumentViewer from '../components/DocumentViewer';
-import AIPanel, { AIMode } from '../components/AIPanel';
-import { queryDocument, summarizeText } from '../services/apiService';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import DocumentViewer from '../components/DocumentViewer'; // This is now the initial upload screen
+import AIPanel from '../components/AIPanel';
+import { startAnalysis } from '../services/apiService'; // Use the new API service function
+import { Loader2, FileCheck2, MessageSquare } from 'lucide-react';
 
-// Define the structure for a chat message, exported for use in other components
-export type Message = {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-};
+// --- Helper Component: Analysis In Progress View ---
+// This is shown after a file is uploaded and the backend is processing it.
+function AnalysisInProgress({ docId }: { docId: string }) {
+  return (
+    <main className="flex-1 bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+      <div className="text-center p-8">
+        <Loader2 className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-4 animate-spin" />
+        <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+          Analysis in Progress
+        </h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mx-auto mb-6">
+          Your document is being processed by our AI pipeline. This may take a few moments. You can safely leave this page and check back later.
+        </p>
+        <p className="text-xs text-slate-400 dark:text-slate-600 font-mono">
+          Job ID: {docId}
+        </p>
+      </div>
+    </main>
+  );
+}
 
+// --- Helper Component: Results Dashboard View ---
+// This is a placeholder for where the final analysis results will be displayed.
+function ResultsDashboard({ results }: { results: any }) {
+    return (
+        <main className="flex-1 bg-slate-50 dark:bg-slate-900 p-8 overflow-y-auto">
+            <div className="max-w-4xl mx-auto">
+                <div className="flex items-center gap-3 mb-6">
+                    <FileCheck2 className="w-8 h-8 text-green-500" />
+                    <h2 className="text-3xl font-bold text-slate-900 dark:text-white">
+                        Analysis Complete
+                    </h2>
+                </div>
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-md border border-slate-200 dark:border-slate-700">
+                    <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200">Impact Summary:</h3>
+                    <pre className="text-left bg-slate-100 dark:bg-slate-800 p-4 rounded-lg text-sm text-slate-700 dark:text-slate-300">
+                        {JSON.stringify(results, null, 2)}
+                    </pre>
+                </div>
+            </div>
+        </main>
+    );
+}
+
+// --- Main Workspace Component ---
 function Workspace() {
-  const { user } = useAuth();
+  // NEW STATE: Manages the current stage of the analysis workflow.
+  type AnalysisStatus = 'IDLE' | 'UPLOADING' | 'PROCESSING' | 'COMPLETE' | 'ERROR';
   
-  // --- STATE MANAGEMENT ---
-  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
-  const [aiDocId, setAiDocId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [aiMode, setAiMode] = useState<AIMode>('chat');
-  const [highlightedText, setHighlightedText] = useState<string>('');
+  // *** THIS IS THE CORRECTED LINE ***
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>('IDLE');
+  
+  // NEW STATE: Stores the unique job ID received from the backend after upload.
+  const [currentDocId, setCurrentDocId] = useState<string | null>(null);
+
+  // NEW STATE: Stores the final JSON results when the analysis is complete.
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  
+  // NEW STATE: To trigger a refresh in the sidebar when an analysis is done.
   const [refreshSidebarKey, setRefreshSidebarKey] = useState(false);
 
-  /**
-   * EFFECT: Fetches message history from Supabase whenever the selectedChatId changes.
-   */
-  useEffect(() => {
-    const fetchMessages = async () => {
-      if (!selectedChatId) {
-        setMessages([]); // Clear messages if no chat is selected
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select('id, role, content, created_at')
-          .eq('chat_id', selectedChatId)
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        const loadedMessages = data.map(msg => ({
-          id: msg.id,
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content,
-          timestamp: new Date(msg.created_at),
-        }));
-        setMessages(loadedMessages);
-      } catch (error) {
-        console.error("Error fetching messages:", error);
-        setMessages([{
-          id: 'error-msg-load',
-          role: 'assistant',
-          content: 'Failed to load message history.',
-          timestamp: new Date()
-        }]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchMessages();
-  }, [selectedChatId]);
 
   /**
-   * Called from Sidebar: Fetches an existing document's URL and its associated chat.
+   * This function is triggered by the DocumentViewer component when a user selects a file.
+   * It starts the entire asynchronous analysis workflow.
    */
-  const handleSelectDocument = async (docId: string) => {
-    // If the same document is clicked again, do nothing.
-    if (docId === selectedDocumentId) return;
-    
-    setIsLoading(true);
+  const handleFileUpload = async (file: File) => {
+    setAnalysisStatus('UPLOADING');
     try {
-      // 1. Fetch the document details to get its file path.
-      const { data: docData, error: docError } = await supabase
-          .from('documents')
-          .select('file_url')
-          .eq('id', docId)
-          .single();
-
-      if (docError || !docData) throw new Error(`Could not find document details: ${docError?.message}`);
-
-      // 2. Create a temporary, secure URL for the file.
-      const { data: signedUrlData, error: signedUrlError } = await supabase
-          .storage
-          .from('user_documents')
-          .createSignedUrl(docData.file_url, 3600); // URL is valid for 1 hour
+      // 1. Send the file to our Flask backend.
+      const result = await startAnalysis(file);
       
-      if (signedUrlError) throw new Error(`Could not create signed URL: ${signedUrlError.message}`);
+      // 2. The backend immediately returns a unique `doc_id`. Store it.
+      setCurrentDocId(result.doc_id);
+      
+      // 3. Update the UI to show the "Analysis in Progress" screen.
+      setAnalysisStatus('PROCESSING');
+      
+      // --- MOCKING THE ASYNC PROCESS ---
+      // In a real application, this is where you would start polling a `/status/<doc_id>` endpoint.
+      // For now, we'll simulate a 5-second processing time.
+      console.log(`Simulating 5-second analysis for doc_id: ${result.doc_id}`);
+      setTimeout(() => {
+        // After 5 seconds, we pretend the analysis is done and set the results.
+        const mockResults = {
+          "document_name": file.name,
+          "analysis_id": result.doc_id,
+          "summary": "The new directive imposes stricter consumer protection rules, impacting e-commerce platforms.",
+          "impacted_companies": {
+            "High Negative Impact": ["Amazon", "Shopify"],
+            "Moderate Negative Impact": ["Walmart", "Target"],
+            "Potential Positive Impact": ["Local small businesses"]
+          },
+          "risk_score": -0.65
+        };
+        setAnalysisResult(mockResults);
+        setAnalysisStatus('COMPLETE');
+        
+        // Refresh the sidebar to show the newly analyzed document.
+        setRefreshSidebarKey(prev => !prev); 
+      }, 5000);
 
-      // 3. Find the chat associated with this document.
-      const { data: chatData, error: chatError } = await supabase
-          .from('chats')
-          .select('id')
-          .eq('document_id', docId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-      if (chatError) throw new Error(`Could not find a chat for this document: ${chatError.message}`);
-
-      // 4. Update all relevant states to display the document and its chat.
-      setSelectedDocumentId(docId);
-      setAiDocId(docId);
-      setDocumentUrl(signedUrlData.signedUrl);
-      setSelectedChatId(chatData.id);
-
-    } catch (error: any) {
-        console.error("Error selecting document:", error);
-        alert(`Failed to load document. ${error.message}`);
-        // If loading fails, reset the view.
-        handleDeselect();
-    } finally {
-        setIsLoading(false);
+    } catch (error) {
+      console.error("Error starting analysis:", error);
+      alert(`Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      setAnalysisStatus('ERROR');
     }
+  };
+
+  // --- Functions below are placeholders for future functionality ---
+  // They will be used to view historical analyses from the sidebar.
+  const handleSelectDocument = (docId: string) => {
+    console.log("Future feature: Loading historical analysis for docId:", docId);
+    // Here you would fetch results for `docId` and set the state to 'COMPLETE'
+    // e.g., getAnalysisResults(docId).then(res => { setAnalysisResult(res); setStatus('COMPLETE'); });
+  };
+
+  const handleNewAnalysis = () => {
+    // Reset the state to allow for a new upload.
+    setAnalysisStatus('IDLE');
+    setCurrentDocId(null);
+    setAnalysisResult(null);
   };
   
-  /**
-   * Clears all active document and chat states to reset the view.
-   * This is called when a document is deleted or if loading fails.
-   */
-  const handleDeselect = () => {
-    setSelectedDocumentId(null);
-    setSelectedChatId(null);
-    setDocumentUrl(null);
-    setAiDocId(null);
-    setMessages([]);
-  };
-
-  /**
-   * Creates a new, empty chat session that is not associated with any document.
-   */
-  const handleNewChat = async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-        const { data, error } = await supabase
-            .from('chats')
-            .insert({ user_id: user.id, title: 'New Chat' })
-            .select()
-            .single();
-        if (error) throw error;
-        
-        // Clear any currently viewed document
-        handleDeselect(); 
-        // Set the new chat as active
-        setSelectedChatId(data.id);
-        // Trigger a refresh in the sidebar to show the new chat (if chats were visible)
-        setRefreshSidebarKey(prev => !prev);
-    } catch(error: any) {
-        console.error("Error creating new chat:", error);
-        alert(`Failed to create a new chat: ${error.message}`);
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  /**
-   * Handles the complete upload workflow: Storage, Backend AI processing, and Database records.
-   */
-  const handleUploadSuccess = async (backendDocId: string, file: File) => {
-    if (!user) return;
-    try {
-      const filePath = `${user.id}/${backendDocId}-${file.name}`;
-
-      const { error: uploadError } = await supabase.storage.from('user_documents').upload(filePath, file);
-      if (uploadError) throw uploadError;
-
-      const { error: docError } = await supabase.from('documents').insert({
-        id: backendDocId,
-        user_id: user.id,
-        title: file.name,
-        file_url: filePath,
-        file_size: file.size,
-      });
-      if (docError) throw docError;
-      
-      const { data: chatData, error: chatError } = await supabase.from('chats').insert({ 
-        user_id: user.id, 
-        document_id: backendDocId, 
-        title: file.name 
-      }).select().single();
-      if (chatError) throw chatError;
-
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage.from('user_documents').createSignedUrl(filePath, 3600);
-      if (signedUrlError) throw signedUrlError;
-
-      // Set the newly uploaded document as the active one
-      setAiDocId(backendDocId);
-      setSelectedDocumentId(backendDocId);
-      setDocumentUrl(signedUrlData.signedUrl);
-      setSelectedChatId(chatData.id);
-      setMessages([]);
-      setAiMode('chat');
-      setRefreshSidebarKey(prev => !prev); // Refresh sidebar to show the new document
-    } catch (error) {
-      console.error("Error during upload and database insertion:", error);
-      alert("An error occurred while saving the document.");
-    }
-  };
-
-  /**
-   * Sends a user's question to the backend and saves the conversation to Supabase.
-   */
-  const handleSendMessage = async (question: string) => {
-    if (!aiDocId || !selectedChatId || isLoading) return;
-
-    const userMessage: Message = { id: `user-${Date.now()}`, role: 'user', content: question, timestamp: new Date() };
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
-
-    try {
-      await supabase.from('messages').insert({ chat_id: selectedChatId, role: 'user', content: question });
-      
-      const result = await queryDocument(aiDocId, question);
-      const assistantMessage: Message = { id: `assistant-${Date.now()}`, role: 'assistant', content: result.answer, timestamp: new Date() };
-      
-      await supabase.from('messages').insert({ chat_id: selectedChatId, role: 'assistant', content: result.answer });
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error("Error querying document:", error);
-      const errorMessage: Message = { id: `error-${Date.now()}`, role: 'assistant', content: "Sorry, an error occurred while processing your request. Please try again.", timestamp: new Date() };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /**
-   * Captures highlighted text and switches the AI Panel to summarize mode.
-   */
-  const handleTextHighlight = (selectedText: string) => {
-    if (!selectedChatId) {
-        alert("Please select a document or start a new chat before summarizing.");
-        return;
-    }
-    setHighlightedText(selectedText);
-    setAiMode('summarize');
-  };
-
-  /**
-   * Sends highlighted text to the backend and saves the summary to the current chat.
-   */
-  const handleRequestSummary = async (description: string) => {
-    if (!highlightedText || !selectedChatId || isLoading) return;
-    
-    setIsLoading(true);
-    const summaryRequestMessage: Message = { id: `pending-${Date.now()}`, role: 'assistant', content: "Summarizing the selected text...", timestamp: new Date() };
-    setMessages(prev => [...prev, summaryRequestMessage]);
-
-    try {
-      const result = await summarizeText(highlightedText, description);
-      const summaryContent = `**Summary of your selection:**\n\n${result.summary}`;
-      const summaryMessage: Message = { id: `summary-${Date.now()}`, role: 'assistant', content: summaryContent, timestamp: new Date() };
-      
-      await supabase.from('messages').insert({ chat_id: selectedChatId, role: 'assistant', content: summaryContent });
-      // Replace the "Summarizing..." message with the actual summary
-      setMessages(prev => [...prev.slice(0, -1), summaryMessage]);
-    } catch (error) {
-      console.error("Error summarizing text:", error);
-      const errorMessage: Message = { id: `error-${Date.now()}`, role: 'assistant', content: "Sorry, I couldn't summarize that selection.", timestamp: new Date() };
-      setMessages(prev => [...prev.slice(0, -1), errorMessage]);
-    } finally {
-      setIsLoading(false);
-      setHighlightedText('');
-      setAiMode('chat');
+  // Renders the main content area based on the current analysis status.
+  const renderMainContent = () => {
+    switch (analysisStatus) {
+      case 'UPLOADING':
+      case 'PROCESSING':
+        return <AnalysisInProgress docId={currentDocId!} />;
+      case 'COMPLETE':
+        return <ResultsDashboard results={analysisResult} />;
+      case 'ERROR':
+        return (
+          <main className="flex-1 bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+            <div className="text-center p-8">
+              <h3 className="text-xl font-semibold text-red-500 mb-4">Analysis Failed</h3>
+              <p className="text-slate-500 mb-6">Something went wrong. Please try uploading the document again.</p>
+              <button onClick={handleNewAnalysis} className="px-6 py-2 bg-slate-900 text-white rounded-lg">
+                Try Again
+              </button>
+            </div>
+          </main>
+        );
+      case 'IDLE':
+      default:
+        // By default, show the upload screen.
+        return <DocumentViewer onFileUpload={handleFileUpload} isUploading={analysisStatus === 'UPLOADING'} />;
     }
   };
 
@@ -282,27 +162,30 @@ function Workspace() {
       <TopBar />
       <div className="flex-1 flex overflow-hidden">
         <Sidebar
-          selectedDocument={selectedDocumentId}
+          // The sidebar will be used to view past analyses.
+          selectedDocument={currentDocId}
           onSelectDocument={handleSelectDocument}
-          onNewChat={handleNewChat}
+          // The "New Chat" button will now start a new analysis.
+          onNewChat={handleNewAnalysis}
+          // This key will force the sidebar to re-fetch data after an analysis completes.
           refreshKey={refreshSidebarKey}
-          onDeleteDocument={handleDeselect} // Pass the deselect handler to clear the view on delete
+          onDeleteDocument={() => console.log("Delete document")} // Placeholder
         />
-        <DocumentViewer 
-          documentUrl={documentUrl}
-          onUploadSuccess={handleUploadSuccess} 
-          onSummarize={handleTextHighlight}
-        />
-        <AIPanel
-          documentId={aiDocId}
-          mode={aiMode}
-          onModeChange={setAiMode}
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          onRequestSummary={handleRequestSummary}
-          highlightedText={highlightedText}
-          isLoading={isLoading}
-        />
+        
+        {renderMainContent()}
+
+        {/* The AI Panel can be used to ask follow-up questions about the *results* later. */}
+        {/* For now, it can be a simple placeholder or be conditionally rendered. */}
+        <aside className="w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 flex items-center justify-center">
+            <div className="text-center px-6">
+                <MessageSquare className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">AI Assistant</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {analysisStatus === 'COMPLETE' ? 'Ask follow-up questions about the analysis results.' : 'Complete an analysis to activate the assistant.'}
+                </p>
+            </div>
+        </aside>
+
       </div>
     </div>
   );

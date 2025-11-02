@@ -1,13 +1,11 @@
-// src/services/apiService.ts
-
 const BASE_URL = 'http://localhost:5000/api';
 
 /**
- * Uploads any file to the backend.
- * @param file The file to upload.
- * @returns The JSON response from the server, including the doc_id.
+ * Uploads any file to the backend to start the analysis pipeline.
+ * @param file The file to upload (e.g., PDF, HTML, CSV).
+ * @returns The JSON response from the server, containing the { doc_id }.
  */
-export async function uploadFile(file: File) {
+export async function startAnalysis(file: File) {
   const formData = new FormData();
   formData.append('file', file);
 
@@ -17,45 +15,36 @@ export async function uploadFile(file: File) {
   });
 
   if (!response.ok) {
-    throw new Error('Upload failed');
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Upload failed');
   }
   return response.json();
 }
 
 /**
- * Sends a question about a document to the backend.
- * @param doc_id The ID of the document.
- * @param question The user's question.
- * @returns The JSON response from the server, including the AI's answer.
+ * (Placeholder) Checks the status of an analysis job.
+ * @param doc_id The ID of the document analysis job.
+ * @returns The JSON response with the current status.
  */
-export async function queryDocument(doc_id: string, question: string) {
-  const response = await fetch(`${BASE_URL}/query`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ doc_id, question }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Query failed');
-  }
-  return response.json();
+export async function checkAnalysisStatus(doc_id: string) {
+  // This endpoint doesn't exist yet on the backend, but we'll build the frontend for it.
+  console.log(`(Mock API) Checking status for: ${doc_id}`);
+  // In a real scenario, this would fetch from `${BASE_URL}/status/${doc_id}`
+  // We'll mock a response for now.
+  return Promise.resolve({ doc_id: doc_id, status: "PROCESSING" }); 
 }
 
 /**
- * Sends selected text and an optional description to the backend for summarization.
- * @param text The text selected by the user.
- * @param description The user's specific request about the summary.
- * @returns The JSON response from the server, including the summary.
+ * (Placeholder) Fetches the final results of a completed analysis.
+ * @param doc_id The ID of the document analysis job.
+ * @returns The JSON containing the analysis results.
  */
-export async function summarizeText(text: string, description: string) {
-  const response = await fetch(`${BASE_URL}/summarize`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, description }), // Send both fields
+export async function getAnalysisResults(doc_id: string) {
+  // This endpoint also doesn't exist yet.
+  console.log(`(Mock API) Fetching results for: ${doc_id}`);
+  // In a real scenario, this would fetch from `${BASE_URL}/results/${doc_id}`
+  return Promise.resolve({
+    "Tesla": {"impact":"negative","score":-0.72,"reason":"EV tariff"},
+    "Ford": {"impact":"positive","score":0.31,"reason":"domestic subsidy"}
   });
-
-  if (!response.ok) {
-    throw new Error('Summarization failed');
-  }
-  return response.json();
 }
